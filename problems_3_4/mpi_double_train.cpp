@@ -14,7 +14,7 @@ using std::vector;
 double ex4_accel(double time);
 double ex4_vel(double time);
 double ex4_pos(double time, double prevTime, double velocity, double prevPos);
-double LeftRiemann(double left_endpt, double right_endpt, int rect_count, double base_len);
+double Trap(double left_endpt, double right_endpt, double trap_count, double base_len);    
 void Get_input(int my_rank, int comm_sz, double* a_p, double* b_p, double* n_p);
 double funct_to_integrate(double x);
 //limited precision of real values
@@ -45,21 +45,21 @@ int main() {
     printf("-----my_rank=%d, a=%15.14lf, b=%15.14lf, number of total steps=%lf\n", my_rank, a, b, n);
 
   step_size = (b-a)/n;  /* step is the same for all processes */
-  local_n = n/comm_sz;  /* So is the number of rectangles  */
+  local_n = n/comm_sz;  /* So is the number of trapezoids  */
 
   local_a = a + my_rank*local_n*step_size;
   local_b = local_a + local_n*step_size;
 
-  printf("*****my_rank=%d, start a=%lf, end b=%lf, number of rectangles=%lf, step_size=%lf\n",
+  printf("*****my_rank=%d, start a=%lf, end b=%lf, number of trapezoids=%lf, step_size=%lf\n",
       my_rank, local_a, local_b, step_size, local_n);
-  local_int_area = LeftRiemann(local_a, local_b, step_size, local_n);
+  local_int_area = Trap(local_a, local_b, step_size, local_n);
 
-  printf("my_rank=%d, integrated area = %lf, step_size * number rectangles=%lf\n", 
+  printf("my_rank=%d, integrated area = %lf, step_size * number trapezoids=%lf\n", 
       my_rank, local_int_area, (step_size*local_n));
   MPI_Reduce(&local_int_area, &total_int_area, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (my_rank == 0) {
-    printf("/////With n=%lf rectangles, our estimate\n", n);
+    printf("/////With n=%lf trapezoids, our estimate\n", n);
     printf("of the integral from %f to %f= %15.14lf\n", a, b, total_int_area);
   }
 
@@ -70,28 +70,22 @@ int main() {
   return 0;
 }
 
-double LeftRiemann(double left_endpt, double right_endpt, int rect_count, double base_len) 
+double Trap(double left_endpt, double right_endpt, double trap_count, double base_len)
 {
-  double left_value, x, area=0.0; 
-  int i;
+   double estimate, x; 
+   int i;
 
-  // estimate of function on left side to forward integrate
-  left_value = funct_to_integrate(left_endpt);
-  x = left_endpt;
+   estimate = (funct_to_integrate(left_endpt) + funct_to_integrate(right_endpt))/2.0;
 
-  for (i = 1; i <= rect_count; i++) 
-  {
-    area += left_value * base_len;
+   for (i = 1; i <= trap_count-1; i++) 
+   {
+      x = left_endpt + i*base_len;
+      estimate += funct_to_integrate(x);
+   }
+   estimate = estimate*base_len;
 
-    // new values to add to area
-    x += base_len;
-    left_value = funct_to_integrate(x);
-  }
-
-  return area;
-
-} /*  LeftRiemann  */
-
+   return estimate;
+}
 
 void Get_input(int my_rank, int comm_sz, double* a_p, double* b_p, double* n_p) {
   int rc=0;
@@ -104,8 +98,6 @@ void Get_input(int my_rank, int comm_sz, double* a_p, double* b_p, double* n_p) 
   MPI_Bcast(b_p, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   MPI_Bcast(n_p, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }  /* Get_input */
-
-
 
 double funct_to_integrate(double x) 
 {
@@ -141,7 +133,6 @@ double ex4_vel(double time)
 double ex4_pos(double time, double prevTime, double velocity, double prevPos)
 {
   double result=0.0;
-
   result=((velocity*(time-prevTime))+prevPos);
 
   return result;

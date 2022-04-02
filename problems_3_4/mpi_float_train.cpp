@@ -14,7 +14,7 @@ using std::vector;
 float ex4_accel(float time);
 float ex4_vel(float time);
 float ex4_pos(float time, float prevTime, float velocity, float prevPos);
-float LeftRiemann(float left_endpt, float right_endpt, int rect_count, float base_len);
+float Trap(float left_endpt, float right_endpt, float trap_count, float base_len);    
 void Get_input(int my_rank, int comm_sz, float* a_p, float* b_p, float* n_p);
 float funct_to_integrate(float x);
 //limited precision of real values
@@ -52,7 +52,7 @@ int main() {
 
   printf("*****my_rank=%d, start a=%f, end b=%f, number of rectangles=%f, step_size=%f\n",
       my_rank, local_a, local_b, step_size, local_n);
-  local_int_area = LeftRiemann(local_a, local_b, step_size, local_n);
+  local_int_area = Trap(local_a, local_b, step_size, local_n);
 
   printf("my_rank=%d, integrated area = %f, step_size * number rectangles=%f\n", 
       my_rank, local_int_area, (step_size*local_n));
@@ -70,28 +70,22 @@ int main() {
   return 0;
 }
 
-float LeftRiemann(float left_endpt, float right_endpt, int rect_count, float base_len) 
+float Trap(float left_endpt, float right_endpt, float trap_count, float base_len)
 {
-  float left_value, x, area=0.0; 
-  int i;
+   float estimate, x; 
+   int i;
 
-  // estimate of function on left side to forward integrate
-  left_value = funct_to_integrate(left_endpt);
-  x = left_endpt;
+   estimate = (funct_to_integrate(left_endpt) + funct_to_integrate(right_endpt))/2.0;
 
-  for (i = 1; i <= rect_count; i++) 
-  {
-    area += left_value * base_len;
+   for (i = 1; i <= trap_count-1; i++) 
+   {
+      x = left_endpt + i*base_len;
+      estimate += funct_to_integrate(x);
+   }
+   estimate = estimate*base_len;
 
-    // new values to add to area
-    x += base_len;
-    left_value = funct_to_integrate(x);
-  }
-
-  return area;
-
-} /*  LeftRiemann  */
-
+   return estimate;
+}
 
 void Get_input(int my_rank, int comm_sz, float* a_p, float* b_p, float* n_p) {
   int rc=0;
@@ -106,12 +100,11 @@ void Get_input(int my_rank, int comm_sz, float* a_p, float* b_p, float* n_p) {
 }  /* Get_input */
 
 
-
 float funct_to_integrate(float x) 
 {
   //return sin(x);
-  return(ex4_accel(x));
-  //return(ex4_vel(x));
+  //return(ex4_accel(x));
+  return(ex4_vel(x));
 }
 
 float ex4_accel(float time)
