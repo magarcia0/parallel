@@ -1,0 +1,50 @@
+INCLUDE_DIRS = 
+LIB_DIRS = 
+CC=gcc
+
+CDEFS=
+CFLAGS= -O0 $(INCLUDE_DIRS) $(CDEFS)
+#CFLAGS= -O0 -g -pg $(INCLUDE_DIRS) $(CDEFS)
+LIBS= 
+
+HFILES= 
+CFILES= gewpp.c gewppoff.c gaussjord.c lufact.c gsit.c
+
+SRCS= ${HFILES} ${CFILES}
+OBJS= ${CFILES:.c=.o}
+
+all:	gewpp gewppoff gaussjord lufact gsit gewppomp vmult
+
+clean:
+	-rm -f *.o *.d
+	-rm -f gewpp gewppoff gaussjord lufact gsit gewppomp vmult
+
+distclean:
+	-rm -f *.o *.d
+	-rm -f gewpp gewppoff gaussjord lufact gsit
+
+gewppomp: gewppomp.o
+	$(CC) $(LDFLAGS) -fopenmp $(CFLAGS) -o $@ $@.o
+
+gewpp: gewpp.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
+
+gewppoff: gewppoff.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
+
+gaussjord: gaussjord.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
+
+lufact: lufact.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
+
+gsit: gsit.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
+
+vmult: vmult.o
+	$(CC) $(LDFLAGS) -fopenmp $(CFLAGS) -o $@ $@.o
+
+depend:
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<

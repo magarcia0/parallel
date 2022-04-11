@@ -110,8 +110,8 @@ void Get_input(int my_rank, int comm_sz, double* a_p, double* b_p, double* n_p) 
 double funct_to_integrate(double x) 
 {
   //return sin(x);
-  return(ex4_accel(x));
-  //return(ex4_vel(x));
+  //return(ex4_accel(x));
+  return(ex4_vel(x));
 }
 
 double ex4_accel(double time)
