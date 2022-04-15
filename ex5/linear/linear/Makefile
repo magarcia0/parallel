@@ -3,7 +3,7 @@ LIB_DIRS =
 CC=gcc
 
 CDEFS=
-CFLAGS= -O0 $(INCLUDE_DIRS) $(CDEFS)
+CFLAGS= -O0 -fopenmp $(INCLUDE_DIRS) $(CDEFS)
 #CFLAGS= -O0 -g -pg $(INCLUDE_DIRS) $(CDEFS)
 LIBS= 
 
@@ -13,11 +13,11 @@ CFILES= gewpp.c gewppoff.c gaussjord.c lufact.c gsit.c
 SRCS= ${HFILES} ${CFILES}
 OBJS= ${CFILES:.c=.o}
 
-all:	gewpp gewppoff gaussjord lufact gsit gewppomp vmult
+all:	gewpp gewppoff gaussjord lufact gsit gewppomp vmult testgen
 
 clean:
 	-rm -f *.o *.d
-	-rm -f gewpp gewppoff gaussjord lufact gsit gewppomp vmult
+	-rm -f gewpp gewppoff gaussjord lufact gsit gewppomp vmult testgen
 
 distclean:
 	-rm -f *.o *.d
@@ -43,6 +43,9 @@ gsit: gsit.o
 
 vmult: vmult.o
 	$(CC) $(LDFLAGS) -fopenmp $(CFLAGS) -o $@ $@.o
+
+testgen: testgen.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
 
 depend:
 

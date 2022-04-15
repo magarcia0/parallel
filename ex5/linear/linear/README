@@ -4,3 +4,9 @@ The file gewpp.c is a much changed and improved C style version of the above for
 for demonstration and round-off error analysis, adds verification of the RHS, and indexes starting at "0" as is 
 expected for all C programs.  The newer version also takes the input file for the Linear system to solve in the original
 MIT format.
+
+For an example of significant speed-up, see vmult and run it with multiple threads.
+
+GEWPP is hard to speed-up other than the verification, which is essentially a test case in vmult.  The gaussian elimination loop has many loop-carried dependencies and even back-solve is complex to speed-up.  It does speed-up significantly if you thread the entire pivot loop, but this causes corruption as can be seen in the ferror check.
+
+Use testgen to creat large linear systems with randomized coefficients - e.g., this is how Lintest1000.dat and Lintest2000.dat were created.

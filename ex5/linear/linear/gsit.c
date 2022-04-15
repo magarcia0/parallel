@@ -1,6 +1,6 @@
 // https://www.codesansar.com/numerical-methods/gauss-seidel-iteration-using-c-programming.htm
 //
-// Modified by Sam Siewert 11/4/2021 to add more examples and to provid RHS verify.
+// Modified by Sam Siewert 11/4/2021 to add more examples and to provide RHS verify.
 // 
 // Note that for GSIT, the equations must first be organized into diagonally dominant form,
 // where the absolute value of the diagonal coefficient is greater than the sum of the absolute
@@ -133,54 +133,54 @@ void vector_print(int nr, double *x);
 
 int main(void)
 {
- double x0=0, y0=0, z0=0, x1, y1, z1, e1, e2, e3, e;
- int count=1;
+    double x0=0, y0=0, z0=0, x1, y1, z1, e1, e2, e3, e;
+    int count=1;
 
- printf("Enter tolerable error:\n");
- scanf("%lf", &e);
+    printf("Enter tolerable error:\n");
+    scanf("%lf", &e);
 
- printf("\nCount\tx\ty\tz\n");
+    printf("\nCount\tx\ty\tz\n");
 
- // if equations are arranged in diagonally dominate form and are not ill-conditioned, GSIT loop
- // should converge.
- //
- // For non-diaonally dominate inputs, GSIT will likely diverge (growing error).
- //
- do
- {
-   /* Calculation */
-   x1 = f1(x0,y0,z0);
-   y1 = f2(x1,y0,z0);
-   z1 = f3(x1,y1,z0);
-   printf("%d\t%0.4f\t%0.4f\t%0.4f\n",count, x1,y1,z1);
+    // if equations are arranged in diagonally dominate form and are not ill-conditioned, GSIT loop
+    // should converge.
+    //
+    // For non-diaonally dominate inputs, GSIT will likely diverge (growing error).
+    //
+    do
+    {
+        /* Calculation */
+        x1 = f1(x0,y0,z0);
+        y1 = f2(x1,y0,z0);
+        z1 = f3(x1,y1,z0);
+        printf("%d\t%0.4f\t%0.4f\t%0.4f\n",count, x1,y1,z1);
 
-   /* Error */
-   e1 = fabs(x0-x1);
-   e2 = fabs(y0-y1);
-   e3 = fabs(z0-z1);
+        /* Error */
+        e1 = fabs(x0-x1);
+        e2 = fabs(y0-y1);
+        e3 = fabs(z0-z1);
 
-   count++;
+        count++;
 
-   /* Set value for next iteration */
-   x0 = x1;
-   y0 = y1;
-   z0 = z1;
+        /* Set value for next iteration */
+        x0 = x1;
+        y0 = y1;
+        z0 = z1;
 
- } while(e1>e && e2>e && e3>e);
+    } while(e1>e && e2>e && e3>e);
 
- printf("\nGSIT Solution: x=%0.3f, y=%0.3f and z = %0.3f\n\n",x1,y1,z1);
- printf("Math Tool Solution:\n");
- vector_print(n, sol);
+    printf("\nGSIT Solution: x=%0.3f, y=%0.3f and z = %0.3f\n\n",x1,y1,z1);
+    printf("Math Tool Solution:\n");
+    vector_print(n, sol);
 
- // Additional verification steps to assess error in answer.
- //
- x[0] = x1;
- x[1] = y1;
- x[2] = z1;
+    // Additional verification steps to assess error in answer.
+    //
+    x[0] = x1;
+    x[1] = y1;
+    x[2] = z1;
 
- verify(a, b, x, n);
+    verify(a, b, x, n);
 
- return 0;
+    return 0;
 
 }
 

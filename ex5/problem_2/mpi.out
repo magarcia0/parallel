@@ -1,0 +1,7 @@
+comm_sz=1, length=1000000, sub_length=1000000
+my_rank=0, iterated up to 1000000, local_sum=0.78539791339744
+my_rank=0, iterated up to 1000000, local_sum=0.78539791339744
+20 decimals of pi  =3.14159265358979323846
+C math library pi  =3.14159265358979
+Madhava-Leibniz pi =3.14159165358977, ppb error=1000.00001879152478
+Euler modified pi  =3.14159215358990, ppb error=499.99989126803257

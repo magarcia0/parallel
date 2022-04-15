@@ -21,6 +21,9 @@ double C[MAX_DIM][MAX_DIM];
 
 int debug=0; // debug is normally off, but turned on for simple examples
 
+// global for simple demonstration of various pragma locations
+int thread_count=4;
+
 double notesA[3][3] = {{0.0, 1.0, 2.0}, {3.0, 4.0, 5.0}, {6.0, 7.0, 8.0}};
 double notesB[3][3] = {{0.0, 1.0, 2.0}, {3.0, 4.0, 5.0}, {6.0, 7.0, 8.0}};
 double notesC[3][3] = {{15.0, 18.0, 21.0}, {42.0, 54.0, 66.0}, {69.0, 90.0, 111.0}};
@@ -35,7 +38,6 @@ int main (int argc, char *argv[])
     // Timing declarations
     struct timespec start, end;
     double fstart=0.0, fend=0.0;
-    int thread_count=4;
 
 
     if(argc > 1)
@@ -105,27 +107,33 @@ int main (int argc, char *argv[])
         vector_print(n, default_vect);
     }
 
-    // Sequential tests
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    seqvmult(n, alt_mat, default_vect);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
-    fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
-    printf("SEQUENTIAL vmult %d took %lf seconds\n", n, (fend-fstart));
+    if(debug)
+    {
+        // Sequential tests
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        seqvmult(n, alt_mat, default_vect);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
+        fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
+        printf("SEQUENTIAL vmult %d took %lf seconds\n", n, (fend-fstart));
 
-    // Sequential tests
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    seqmmult(n, default_mat, default_mat);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
-    fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
-    printf("SEQUENTIAL mmult %d took %lf seconds\n", n, (fend-fstart));
+        // Sequential tests
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        seqmmult(n, default_mat, default_mat);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
+        fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
+        printf("SEQUENTIAL mmult %d took %lf seconds\n", n, (fend-fstart));
+    }
 
     if(!debug)
     {
         clock_gettime(CLOCK_MONOTONIC, &start);
+
+	// this function does not speed-up well with OpenMP
 //#pragma omp parallel num_threads(thread_count)
         vmult(n, alt_mat, default_vect);
+
         clock_gettime(CLOCK_MONOTONIC, &end);
         fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
         fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
@@ -133,8 +141,11 @@ int main (int argc, char *argv[])
 
 
         clock_gettime(CLOCK_MONOTONIC, &start);
+
+	// this function does not speed-up well with OpenMP
 //#pragma omp parallel num_threads(thread_count)
         mmult(n, default_mat, default_mat);
+
         clock_gettime(CLOCK_MONOTONIC, &end);
         fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
         fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
@@ -150,7 +161,7 @@ void vmult(int n, double A[][MAX_DIM], double x[MAX_DIM])
     int row_idx, col_jdx;
     double rhs[n], temp;
 
-    // for all rows
+    // for all rows - this loop speeds up well with OpenMP
 #pragma omp parallel for num_threads(thread_count) private(row_idx, col_jdx) shared(n)
     for (row_idx=0; row_idx < n; ++row_idx)
     {
@@ -159,7 +170,6 @@ void vmult(int n, double A[][MAX_DIM], double x[MAX_DIM])
         // sum up row's column coefficient x solution vector element
         // as we would do for any matrix * vector operation which yields a vector,
         // which should be the RHS
-#pragma omp parallel for num_threads(thread_count) default(none) reduction(+:temp) private(col_jdx) shared(n)
         for (col_jdx=0; col_jdx < n; ++col_jdx)
         {
             temp += A[row_idx][col_jdx] * x[col_jdx];
@@ -201,8 +211,9 @@ void seqvmult(int n, double A[][MAX_DIM], double x[MAX_DIM])
 void mmult(int n, double A[][MAX_DIM], double B[][MAX_DIM])
 {
     int row_idx, col_jdx, coeff_idx;
+    double temp;
 
-    // for all rows
+    // for all rows - this loop speeds-up well with OpenMP
 #pragma omp parallel for num_threads(thread_count) private(row_idx, col_jdx) shared(n)
     for (row_idx=0; row_idx < n; ++row_idx)
     {

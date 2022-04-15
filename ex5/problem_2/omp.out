@@ -1,0 +1,5 @@
+Thread 0 of 2, length=500000, residual=0, iterations=500000
+Thread 1 of 2, length=500000, residual=0, iterations=500000
+20 decimals of pi  =3.14159265358979323846
+C math library pi  =3.14159265358979 
+ Madhava-Leibniz pi =0.78539791339742, ppb error=2356194740.19236993789673

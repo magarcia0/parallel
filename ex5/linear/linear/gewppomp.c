@@ -88,15 +88,18 @@
 #include <time.h>
 
 #define ICHAR 80  // Length of array holding description of the problem
-#define IDEBUG 1  // Flag to enable printing of intermediate results of decomposition =1 yes, =0 no.
+#define IDEBUG 0  // Flag to enable printing of intermediate results of decomposition =1 yes, =0 no.
+#define IVERIFY 0  // Flag to enable printing of verification =1 yes, =0 no.
 
 
 // Function Prototypes
 void  matrix_print (int nr, int nc, double **A);
 void  vector_print (int nr, double *x);
 void gauss(double **a, double *b, double *x, int n);
-void verify(double **a, double *b, double *rhs, double *x, int n);
+double verify(double **a, double *b, double *rhs, double *x, int n);
 
+// global for simple testing with various pragma locations
+int thread_count=1;
 
 int main (int argc, char *argv[])
 {
@@ -105,11 +108,11 @@ int main (int argc, char *argv[])
     char   desc[ICHAR];         // file header description 
     int    row_idx, col_jdx, n; // indexes into arrays and dimention of linear system
     FILE   *finput;             // file pointer to description, dimension, coefficients, and RHS
+    double ferror=0.0;
 
     // Timing declarations
     struct timespec start, end;
     double fstart=0.0, fend=0.0;
-    int thread_count=4;
 
     // Open the file containing:
     // 1) a description, 
@@ -121,11 +124,18 @@ int main (int argc, char *argv[])
     //
     // x is the solution vector (unknowns) that we are solving for
     //
+
     if(argc > 1)
     {
        printf("Using custom input file %s: argc=%d, argv[0]=%s, argv[1]=%s\n",
               argv[0], argc, argv[0], argv[1]);
        finput = fopen(argv[1],"r");
+
+       if(argc == 3)
+       {
+          sscanf(argv[2], "%d", &thread_count);
+          printf("Will solve using %d threads\n", thread_count);
+       }
     }
     else
     {
@@ -216,12 +226,14 @@ int main (int argc, char *argv[])
     // Now print out the problem to be solved in vector matrix form for n equations, n unknowns
     printf("\nMatrices read from input file\n");
 
-    printf("\nCoefficient Matrix A\n\n");
-    matrix_print(n, n, a);
+    if(IDEBUG == 1)
+    {
+        printf("\nCoefficient Matrix A\n\n");
+        matrix_print(n, n, a);
 
-    printf("\nRHS Vector b\n\n");
-    vector_print(n, b);
-
+        printf("\nRHS Vector b\n\n");
+        vector_print(n, b);
+    }
 
     clock_gettime(CLOCK_MONOTONIC, &start);
 
@@ -234,7 +246,7 @@ int main (int argc, char *argv[])
     // Note that this function call will potentially rearrange "a" and "b", so we must save a and b
     // from original input for verification.
     //
-    // put pragma here?
+    // put pragma here? - does not provide much speed-up at all
     //
 //#pragma omp parallel num_threads(thread_count)
 	gauss(a, b, x, n); 
@@ -244,26 +256,32 @@ int main (int argc, char *argv[])
     fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
 
 
-    printf("\nSolution x in %lf seconds\n\n", (fend-fstart));
-    vector_print(n, x);
+    printf("\nSolution x in %lf seconds with %d threads\n\n", (fend-fstart), thread_count);
+    if(IVERIFY == 1)
+        vector_print(n, x);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     // Multiply solution "x" by matrix "a" to verify we get RHS "bsave"
     //
-    // put pragma here?
+    // put pragma here? - does not provide much speed-up at all
+    //
 //#pragma omp parallel num_threads(thread_count)
-	verify(asave, bsave, rhs, x, n); 
+	ferror = verify(asave, bsave, rhs, x, n); 
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
     fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
 
     // Compare original RHS "b" to computed RHS
-    printf("Computed RHS in %lf sec, is:\n", (fend-fstart));
-    vector_print(n, rhs);
+    printf("Computed RHS in %lf sec with %d threads with %lf RHS fabs-error\n", (fend-fstart), thread_count, ferror);
+    if(IVERIFY == 1)
+        vector_print(n, rhs);
 
-    printf("Original RHS is:\n");
-    vector_print(n, bsave);
+    if(IVERIFY == 1)
+    {
+        printf("Original RHS is:\n");
+        vector_print(n, bsave);
+    }
 
     return(0);
 } 
@@ -279,13 +297,14 @@ int main (int argc, char *argv[])
 //	   x   - Computed solution vector
 //	   n   - Matrix dimensions
 ////////////////////////////////////////////////////////////////////
-void verify(double **a, double *b, double *rhs, double *x, int n)
+double verify(double **a, double *b, double *rhs, double *x, int n)
 {
     int row_idx, col_jdx;
-    double temp;
+    double temp, ferror=0.0;
 
-    // for all rows
-//#pragma omp parallel for num_threads(thread_count) default(none) reduction(+:temp) private(row_idx, col_jdx) shared(n)
+    // for all rows - this loop speeds-up well with OpenMP
+    //
+#pragma omp parallel for num_threads(thread_count) private(temp, row_idx, col_jdx) shared(n)
     for (row_idx=0; row_idx < n; ++row_idx) 
     {
         rhs[row_idx] = 0.0; temp=0.0;
@@ -293,22 +312,19 @@ void verify(double **a, double *b, double *rhs, double *x, int n)
         // sum up row's column coefficient x solution vector element
         // as we would do for any matrix * vector operation which yields a vector,
         // which should be the RHS
-//#pragma omp parallel for num_threads(thread_count) default(none) reduction(+:temp) private(col_jdx) shared(n)
         for (col_jdx=0; col_jdx < n; ++col_jdx)
         {
             temp += a[row_idx][col_jdx] * x[col_jdx];
             //rhs[row_idx] += a[row_idx][col_jdx] * x[col_jdx];
         }
 
+	// rhs should equal b, so if zero, no error, otherwise accumulate error to report
+        ferror += fabs(temp - b[row_idx]);
+
         rhs[row_idx]=temp;
     }
 
-    // Compare original RHS "b" to computed RHS
-    //printf("Computed RHS is:\n");
-    //vector_print(n, rhs);
-
-    //printf("Original RHS is:\n");
-    //vector_print(n, b);
+    return(ferror);
 }
 
 
@@ -362,8 +378,11 @@ void gauss(double **a, double *b, double *x, int n)
     double xfac, temp, amax;
     double local_x[n];
 
-    printf("\nMatrix A passed in\n");
-    matrix_print(n, n, a);
+    if(IDEBUG == 1)
+    {
+        printf("\nMatrix A passed in\n");
+        matrix_print(n, n, a);
+    }
 
     //////////////////////////////////////////
     //
@@ -393,19 +412,25 @@ void gauss(double **a, double *b, double *x, int n)
                  amax = xfac; pivot_row=row_idx;
              }
          }
-         printf("\nPivot row=%d\n", pivot_row);
+
+         if(IDEBUG == 1)
+             printf("\nPivot row=%d\n", pivot_row);
 
 
          // Row interchanges for partial pivot to get lower diagonal form
          if(pivot_row != search_idx) 
          {  
-             printf("Row swaps with pivot_row=%d, search_idx=%d\n", pivot_row, search_idx);
+             if(IDEBUG == 1)
+                 printf("Row swaps with pivot_row=%d, search_idx=%d\n", pivot_row, search_idx);
 
-             rowx = rowx+1;
+             if(IDEBUG == 1) rowx = rowx+1;
              temp = b[search_idx];
              b[search_idx]  = b[pivot_row];
              b[pivot_row]  = temp;
 
+	     // Make simple row swapping between pivot row and search index row parallel
+	     //
+//#pragma omp parallel for num_threads(thread_count) private(temp, col_jdx) shared(pivot_row, search_idx, n)
              for(col_jdx=search_idx; col_jdx < n; col_jdx++) 
              {
                  temp = a[search_idx][col_jdx];
@@ -413,8 +438,11 @@ void gauss(double **a, double *b, double *x, int n)
                  a[pivot_row][col_jdx] = temp;
              }
 
-             printf("\nMatrix A after row swaps\n");
-             matrix_print(n, n, a);
+             if(IDEBUG == 1)
+             {
+                 printf("\nMatrix A after row swaps\n");
+                 matrix_print(n, n, a);
+             }
           }
 
           // Row scaling to get zero in corresponding column
@@ -430,6 +458,7 @@ void gauss(double **a, double *b, double *x, int n)
               // row should be zero by computation, but might have some error, so we want to see
               // it when we print out the intermediate matrices, if in fact there is error.
               //
+//#pragma omp parallel for num_threads(thread_count) private(col_jdx) shared(xfac, search_idx, row_idx)
               for (col_jdx=search_idx; col_jdx < n; ++col_jdx) 
               {
                   a[row_idx][col_jdx] = a[row_idx][col_jdx] - (xfac*a[search_idx][col_jdx]);
@@ -437,8 +466,11 @@ void gauss(double **a, double *b, double *x, int n)
               
               b[row_idx] = b[row_idx] - (xfac*b[search_idx]);
 
-              printf("\nMatrix A after row scaling with xfac=%lf\n", xfac);
-              matrix_print(n, n, a);
+              if(IDEBUG == 1) 
+              {
+                  printf("\nMatrix A after row scaling with xfac=%lf\n", xfac);
+                  matrix_print(n, n, a);
+              }
           }
 
         if(IDEBUG == 1) 
@@ -454,39 +486,41 @@ void gauss(double **a, double *b, double *x, int n)
     // Do the back substitution step 
     //
     ////////////////////////////////////////
-//#pragma omp parallel for num_threads(thread_count) default(none) private(row_idx, coef_idx, solve_idx) shared(n)
+//#pragma omp parallel for num_threads(thread_count) private(row_idx, solve_idx, coef_idx) shared(n)
     for (row_idx=0; row_idx < n; ++row_idx) 
     {
 
-      // Start at last row and work upward to first row
-      //
-      // The last row should always just have one non-zero coefficient in the last
-      // column.  After solving for this unknown in the last row, we can then use it
-      // to solve for the unknown one row up, and so on.
-      solve_idx=n-row_idx-1;
+        // Start at last row and work upward to first row
+        //
+        // The last row should always just have one non-zero coefficient in the last
+        // column.  After solving for this unknown in the last row, we can then use it
+        // to solve for the unknown one row up, and so on.
+        solve_idx=n-row_idx-1;
 
-      // Start out with solution as RHS
-      //x[solve_idx] = b[solve_idx];
-      local_x[solve_idx] = b[solve_idx];
+        // Start out with solution as RHS
+        //x[solve_idx] = b[solve_idx];
+        local_x[solve_idx] = b[solve_idx];
 
-      // Note that this loop is skipped for the first solution which is simply
-      // the RHS / (last row, last column coefficient), or RHS / diagonal[last][last]
-      //
-      // In subsequent rows as we move up, the result from the prior solution row is used
-      // to determine the current.  E.g., for 3 unknowns x, y, z, this automates finding
-      // z first, then using z to find y, and finally using y and z to find x.
-      for(coef_idx=solve_idx+1; coef_idx < n; ++coef_idx) 
-      {
-         //x[solve_idx] = x[solve_idx] - (a[solve_idx][coef_idx]*x[coef_idx]);
-         local_x[solve_idx] = local_x[solve_idx] - (a[solve_idx][coef_idx]*local_x[coef_idx]);
-      }
+        // Note that this loop is skipped for the first solution which is simply
+        // the RHS / (last row, last column coefficient), or RHS / diagonal[last][last]
+        //
+        // In subsequent rows as we move up, the result from the prior solution row is used
+        // to determine the current.  E.g., for 3 unknowns x, y, z, this automates finding
+        // z first, then using z to find y, and finally using y and z to find x.
+//#pragma omp parallel for num_threads(thread_count) private(coef_idx) shared(n, solve_idx)
+        for(coef_idx=solve_idx+1; coef_idx < n; ++coef_idx) 
+        {
+           //x[solve_idx] = x[solve_idx] - (a[solve_idx][coef_idx]*x[coef_idx]);
+           local_x[solve_idx] = local_x[solve_idx] - (a[solve_idx][coef_idx]*local_x[coef_idx]);
+        }
 
-      // based on lower diagonal form we always divide by a diagonal coefficient to
-      // find the current unknown of interest
-      //x[solve_idx] = x[solve_idx] / a[solve_idx][solve_idx];
-      local_x[solve_idx] = local_x[solve_idx] / a[solve_idx][solve_idx];
+        // based on lower diagonal form we always divide by a diagonal coefficient to
+        // find the current unknown of interest
+        //x[solve_idx] = x[solve_idx] / a[solve_idx][solve_idx];
+        local_x[solve_idx] = local_x[solve_idx] / a[solve_idx][solve_idx];
     }
 
+#pragma omp parallel for num_threads(thread_count) private(row_idx) shared(n)
     for (row_idx=0; row_idx < n; ++row_idx)
         x[row_idx]=local_x[row_idx];
 
