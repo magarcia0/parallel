@@ -14,6 +14,7 @@
 // The second series is the summation of 2 / ((4n+1)(4n+3)) for n=0 to infinity
 //
 
+double start=0.0, end=0.0;
 int main(int argc, char** argv)
 {
   int comm_sz, my_rank, idx;
@@ -24,12 +25,12 @@ int main(int argc, char** argv)
 
   if(argc < 2)
   {
-      printf("usage: piseriesreduce <series n>\n");
-      exit(-1);
+    printf("usage: piseriesreduce <series n>\n");
+    exit(-1);
   }
   else
   {
-      sscanf(argv[1], "%u", &length);
+    sscanf(argv[1], "%u", &length);
   }
 
 
@@ -39,8 +40,10 @@ int main(int argc, char** argv)
 
   sub_length = length / comm_sz;
 
-  if(my_rank == 0)
-  printf("comm_sz=%d, length=%u, sub_length=%u\n", comm_sz, length, sub_length);
+  if(my_rank == 0){
+    start = MPI_Wtime();
+    printf("comm_sz=%d, length=%u, sub_length=%u\n", comm_sz, length, sub_length);
+  }
 
   // sum the sub-series for the rank for Leibniz's formula for pi/4
   for(idx = my_rank*sub_length; idx < (sub_length*(my_rank+1)); idx++)
@@ -71,10 +74,12 @@ int main(int argc, char** argv)
 
   if(my_rank == 0)
   {
-      printf("\n20 decimals of pi  =3.14159265358979323846\n");
-      printf("C math library pi  =%15.14lf\n", M_PI);
-      printf("Madhava-Leibniz pi =%15.14lf, ppb error=%15.14lf\n", (4.0*g_sum), 1000000000.0*(M_PI - (4.0*g_sum)));
-      printf("Euler modified pi  =%15.14lf, ppb error=%15.14lf\n", (4.0*euler_g_sum), 1000000000.0*(M_PI - (4.0*euler_g_sum)));
+    end = MPI_Wtime();
+    printf("MPI program took %15.14lf seconds\n", (end-start));
+    printf("\n20 decimals of pi  =3.14159265358979323846\n");
+    printf("C math library pi  =%15.14lf\n", M_PI);
+    printf("Madhava-Leibniz pi =%15.14lf, ppb error=%15.14lf\n", (4.0*g_sum), 1000000000.0*(M_PI - (4.0*g_sum)));
+    printf("Euler modified pi  =%15.14lf, ppb error=%15.14lf\n", (4.0*euler_g_sum), 1000000000.0*(M_PI - (4.0*euler_g_sum)));
   }
 
   MPI_Finalize();

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
+#include <time.h>
 
 double pi_subseries(int n);
 
@@ -9,10 +10,12 @@ int main(int argc, char *argv[])
 {
   double sum = 0.0;
   int n, thread_count=2;
+  struct timespec start, end;
+  double fstart=0.0, fend=0.0;
 
   if (argc < 3)
   {
-    printf ( "usage: pi_omp <number threads> <iterations> \n " );
+    printf ( "usage: ./omp_piseries <number threads> <iterations> \n " );
     exit(-1);
   }
   else
@@ -21,14 +24,19 @@ int main(int argc, char *argv[])
     sscanf(argv[2], "%d", &n);
   }
 
-// Make a parellel function rather than parallel loop
-//
-// Function must divide up work by thread # and then sum the sums, 
-// which can be completed in any order as addition is fully associative.
+  // Make a parellel function rather than parallel loop
+  //
+  // Function must divide up work by thread # and then sum the sums, 
+  // which can be completed in any order as addition is fully associative.
 
+  clock_gettime(CLOCK_MONOTONIC, &start);
 #pragma omp parallel num_threads(thread_count)
   sum += pi_subseries(n);
+  clock_gettime(CLOCK_MONOTONIC, &end);
+  fstart=start.tv_sec + (start.tv_nsec / 1000000000.0);
+  fend=end.tv_sec + (end.tv_nsec / 1000000000.0);
 
+  printf("PARALLEL OpenMP piseriesreduce took %lf seconds, with %d workers\n", (fend-fstart), thread_count);
   printf ( "\n20 decimals of pi  =3.14159265358979323846\n");
   printf ( "C math library pi  =%15.14lf \n " , M_PI);
   printf ( "Madhava-Leibniz pi =%15.14lf, ppb error=%15.14lf\n", (4*sum), 1000000000.0*(M_PI-(4*sum)));
@@ -57,20 +65,20 @@ double pi_subseries(int n)
   double num = 0.0;
 
   if(my_rank == (thread_count-1)) 
-      iterations=length+residual;
+    iterations=length+residual;
   else
-      iterations=length;
+    iterations=length;
 
   printf("Thread %d of %d, length=%d, residual=%d, iterations=%d\n", my_rank, thread_count, length, residual, iterations);
 
   for (idx = my_rank*length; idx < (my_rank*length)+iterations; idx++) 
   {
-      num=1.0/(1.0+2.0*idx);
+    num=1.0/(1.0+2.0*idx);
 
-      if (idx % 2 == 0)
-         sum += num ;
-      else
-         sum -= num ;
+    if (idx % 2 == 0)
+      sum += num ;
+    else
+      sum -= num ;
   }
 
   return (sum);
