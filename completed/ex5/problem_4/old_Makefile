@@ -1,0 +1,36 @@
+INCLUDE_DIRS = -I/opt/intel/compilers_and_libraries_2020.0.166/linux/mpi/intel64/include/
+LIB_DIRS = -L/opt/intel/compilers_and_libraries_2020.0.166/linux/mpi/intel64/lib/debug -L/opt/intel/compilers_and_libraries_2020.0.166/linux/mpi/intel64/lib
+MPICC = mpicc
+MPICXX = mpicxx
+CC = icc
+C++ = g++
+
+CDEFS=
+CFLAGS= -g -Wall $(INCLUDE_DIRS) $(CDEFS)
+CCFLAGS= -g -Wall 
+MPIFLAGS= -g -Wall -O0 $(INCLUDE_DIRS) $(CDEFS)
+LIBS=
+
+PRODUCT= omp_piseriesreduce piseriesreduce serial_piseriesreduce
+
+HFILES= 
+CFILES= omp_piseriesreduce.c piseriesreduce.c serial_piseriesreduce.c
+
+SRCS= ${HFILES} ${CFILES}
+OBJS= ${CFILES:.c=.o} ${CFILES:.cpp=.o}
+
+all: ${PRODUCT}	
+
+piseriesreduce: piseriesreduce.o
+	$(MPICC) $(MPIFLAGS) -o $@ piseriesreduce.c $(LIBS) -lm
+
+serial_piseriesreduce: serial_piseriesreduce.o
+	$(CC) $(CCFLAGS) $(CFLAGS) -o $@ $@.c $(LIBS)
+#gcc $(CCFLAGS) -o $@ $@.c -lm
+
+omp_piseriesreduce: omp_piseriesreduce.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.c $(LIBS)
+
+clean:
+	-rm -f *.o *.NEW *~
+	-rm -f ${PRODUCT} ${DERIVED} ${GARBAGE}
