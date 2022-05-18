@@ -430,18 +430,18 @@ void Mat_vect_mult(
    double* x;
    int local_i, j;
    int local_ok = 1;
+
    x = malloc(n*sizeof(double));
-
-   if (x == NULL) 
-     local_ok = 0;
-
-   Check_for_error(local_ok, "Mat_vect_mult", "Can't allocate temporary vector", comm);
-   MPI_Allgather(local_x, local_n, MPI_DOUBLE, x, local_n, MPI_DOUBLE, comm);
+   if (x == NULL) local_ok = 0;
+   Check_for_error(local_ok, "Mat_vect_mult",
+         "Can't allocate temporary vector", comm);
+   MPI_Allgather(local_x, local_n, MPI_DOUBLE,
+         x, local_n, MPI_DOUBLE, comm);
 
    for (local_i = 0; local_i < local_m; local_i++) {
       local_y[local_i] = 0.0;
       for (j = 0; j < n; j++)
          local_y[local_i] += local_A[local_i*n+j]*x[j];
-   }//outer-loop
+   }
    free(x);
 }  /* Mat_vect_mult */

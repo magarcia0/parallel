@@ -10,24 +10,20 @@ XFLAGS= -O0 -g -pg $(INCLUDE_DIRS) $(CDEFS)
 LIBS= 
 
 HFILES= 
-#CFILES= serial_matrixmult.c omp_matrixmult.c serial_gsit.c gsit.c
-CFILES= serial_gsit.c gsit.c omp_gsit.c mpi_mult.c
+CFILES= serial_gsit.c gsit.c omp_gsit.c mpi_mult.c mpi_gsit.c
 
 SRCS= ${HFILES} ${CFILES}
 OBJS= ${CFILES:.c=.o}
 
-#all:	serial_matrixmult omp_matrixmult serial_gsit gsit
-all:	serial_gsit gsit omp_gsit mpi_mult
+all:	serial_gsit gsit omp_gsit mpi_mult mpi_gsit
 
 clean:
 	-rm -f *.o *.d
-	#-rm -f serial_matrixmult omp_matrixmult serial_git gsit
-	-rm -f serial_gsit gsit omp_gsit mpi_mult
+	-rm -f serial_gsit gsit omp_gsit mpi_mult mpi_gsit
 
 distclean:
 	-rm -f *.o *.d
-	#-rm -f serial_matrixmult omp_matrixmult serial_gsit gsit
-	-rm -f serial_gsit gsit omp_gsit mpi_mult
+	-rm -f serial_gsit gsit omp_gsit mpi_mult mpi_gsit
 
 serial_gsit: serial_gsit.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
@@ -39,16 +35,10 @@ omp_gsit: omp_gsit.o
 	$(CC) $(LDFLAGS) -fopenmp $(CFLAGS) -o $@ $@.o
 
 mpi_gsit: mpi_gsit.o
-	$(CC) $(LDFLAGS) -fopenmp $(CFLAGS) -o $@ $@.o
+	$(MPICC) $(MPIFLAGS) -o $@ mpi_gsit.c $(LIB_DIRS)
 
 mpi_mult:	mpi_mult.o
 	$(MPICC) $(MPIFLAGS) -o $@ mpi_mult.c $(LIB_DIRS)
-
-#serial_matrixmult: serial_matrixmult.o
-#	$(CC) $(LDFLAGS)  $(XFLAGS) -o $@ $@.o
-
-#vmult: vmult.o
-#	$(CC) $(LDFLAGS) -fopenmp $(CFLAGS) -o $@ $@.o
 
 depend:
 
