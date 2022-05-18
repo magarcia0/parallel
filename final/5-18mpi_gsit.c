@@ -20,7 +20,7 @@ double sol[DIM]={11.509, 11.509, 19.057, 16.998, 11.509};
 double soln[DIM]={1.0, 0.0, 0.0, 0.0, 0.0};
 int n = DIM;
 
-void verify(int displs[], double a[DIM*DIM], double local_a[DIM*DIM], double local_rhs[], double *b, double *x, double local_m, int my_rank, MPI_Comm comm, int start, int end);
+void verify(double a[DIM*DIM], double local_a[DIM*DIM], double local_rhs[], double *b, double *x, double local_m, int my_rank, MPI_Comm comm, int start, int end);
 void vector_print(int nr, double *x);
 
 
@@ -42,17 +42,19 @@ int main(void) {
   local_m = (double)m/(double)comm_sz;
   size = local_m*(double)n;
   double local_a[size];
-  double local_x[size];
-  double local_rhs[size];
-  double displs[DIM*DIM];
+  double local_rhs[n];
 
 
   if(my_rank == 0){
     printf("Enter tolerable error:\n");
     rc = scanf("%lf", &e);
-
+    //for(int i =0; i < size; i++)
+    // local_rhs[i]=0.0;
+ // printf("\nLOCAL_M: %lf\n", local_m);
+//  printf("SIZE: %d\n", size);
     if(rc < 0) 
       perror("input");
+
     do
     {
 
@@ -97,7 +99,6 @@ int main(void) {
   MPI_Bcast(x, n, MPI_DOUBLE, my_rank, comm);
   MPI_Barrier(comm);
   int k=0;
-
   double big_x[DIM*DIM];
   for(int i = 0; i <5 ; i++){
     for(int j = 0; j < 5 ; j++){
@@ -107,36 +108,17 @@ int main(void) {
     }
   }
 
+  //printf("RANK: %d,Vector X:  %lf, %lf, %lf, %lf, %lf\n",my_rank, x[0],x[1],x[2],x[3],x[4]);
+  MPI_Bcast(a, 25, MPI_DOUBLE, my_rank, comm);
+  //verify(a, local_a, local_rhs, b, x, local_m, my_rank, comm);
   local_start = my_rank*size;
   local_end = local_start+size;
-
-  int recvcounts[comm_sz];
-  for(int i = 0; i < comm_sz; i++){
-    displs[my_rank]= local_start;
-    recvcounts[my_rank] = size;
-  }
-  if(comm_sz==10)
-    recvcounts[comm_sz-1]=7;
-  int * size_ptr= (int*)size;
-  MPI_Scatterv(big_x, size_ptr, displs, MPI_DOUBLE, local_x, size, MPI_DOUBLE, 0, comm);
-  MPI_Scatterv(a, size, displs, MPI_DOUBLE, local_a, size, MPI_DOUBLE, 0, comm);
-
-  //for(int i = 0; i <5 ; i++){
-
-  MPI_Bcast(a, 25, MPI_DOUBLE, my_rank, comm);
+  //printf("SIZE=%d\n", size);
   //printf("RANK %d: local_start=%d local_end=%d\n",my_rank, local_start, local_end);
-  int i =0;
-  for (int j=local_start; j < local_end; j++)
-  {
-    if(i == size){
-      i=0;
-    }
-    local_rhs[i] += a[j] * local_a[j];
-    i++;
-  }
+  verify(a, big_x, local_rhs, b, x, local_m, my_rank, comm, local_start, local_end);
+  //MPI_Gather(&local_rhs, size, MPI_DOUBLE, &soln, size, MPI_DOUBLE, 0, comm);
 
-  MPI_Barrier(comm);
-  MPI_Gatherv(local_rhs, size, MPI_DOUBLE, x, recvcounts, displs, MPI_DOUBLE, 0, comm);
+  //MPI_Gather(local_rhs, size, MPI_DOUBLE, soln, size, MPI_DOUBLE, 0, comm);
   MPI_Barrier(comm);
   MPI_Finalize();
 
@@ -164,7 +146,7 @@ void vector_print(int nr, double *x) {
 //     x   - Computed solution vector
 //     n   - Matrix dimensions
 ////////////////////////////////////////////////////////////////////
-void verify(int displs[], double a[DIM*DIM], double local_a[DIM*DIM], double local_rhs[], double *b, double *x, double local_m, int my_rank, MPI_Comm comm, int start, int end){
+void verify(double a[DIM*DIM], double local_a[DIM*DIM], double local_rhs[], double *b, double *x, double local_m, int my_rank, MPI_Comm comm, int start, int end){
   int size = local_m*(double)n;
   int local_i=0, j=0;
   int idx=0;
@@ -190,13 +172,13 @@ void verify(int displs[], double a[DIM*DIM], double local_a[DIM*DIM], double loc
     //}//outerloop
       }//inner loop
 
-  MPI_Gatherv(local_a, size, MPI_DOUBLE, x, size, displs, MPI_DOUBLE, 0, comm);
+  MPI_Gather(local_answers, size, MPI_DOUBLE, answers, size, MPI_DOUBLE, 0, comm);
   MPI_Barrier(comm);
   if (my_rank==0){
 
     // Compare original RHS "b" to computed RHS
     printf("Computed RHS is:\n");
-    vector_print(n, x);
+    vector_print(25, answers);
 
   //  printf("Original RHS is:\n");
    // vector_print(n, b);
